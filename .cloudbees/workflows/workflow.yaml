@@ -1,0 +1,33 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: Workflow
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build-and-publsh:
+    steps:
+      - name: Checkout
+        uses: cloudbees-io/checkout@v1
+
+      - name: Build Go App
+        uses: docker://golang:1.21
+        run: |
+          mkdir -p build
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o build/quickstart-go-app .
+
+      - name: Configure container registry
+        uses: cloudbees-io/configure-oci-credentials@v1
+        with:
+          registry: index.docker.io # or docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and publish container image
+        uses: cloudbees-io/kaniko@v1
+        with:
+          destination: ${{ vars.DOCKERHUB_USERNAME }}/quickstart-go-app:${{ cloudbees.version }}
+  
